@@ -1,0 +1,55 @@
+{
+  "project_info": {
+    "project_number": "1009664058388",
+    "firebase_url": "https://confesiones-4ad7b.firebaseio.com",
+    "project_id": "confesiones-4ad7b",
+    "storage_bucket": "confesiones-4ad7b.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1009664058388:android:c8453e9981684aad",
+        "android_client_info": {
+          "package_name": "com.frank.novoti.confesiones"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1009664058388-hru1vu9vciksu7ifk1t03p517usnktku.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.frank.novoti.confesiones",
+            "certificate_hash": "38c2817a7e58037f4ef8b22442315477d23ad17f"
+          }
+        },
+        {
+          "client_id": "1009664058388-fmsl8892tmqntcgnkgsb11o7k7pk887r.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDM0sON6-xVVfkWiM0-ec-RiPpESr7us-Y"
+        }
+      ],
+      "services": {
+        "analytics_service": {
+          "status": 1
+        },
+        "appinvite_service": {
+          "status": 2,
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1009664058388-fmsl8892tmqntcgnkgsb11o7k7pk887r.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        },
+        "ads_service": {
+          "status": 2
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
