@@ -4,9 +4,16 @@ package com.frank.novoti.confesiones;
  * Created by Claudina on 11/04/17.
  */
 
-public class Post  { private String text;
+public class Post  {
+    private String text;
     private int postId;
     private int numComent;
+
+    public Post(String text, int postId) {
+        this.text = text;
+        this.postId = postId;
+        this.numComent = 0;
+    }
 
     public int getNumComent() {
         return numComent;
