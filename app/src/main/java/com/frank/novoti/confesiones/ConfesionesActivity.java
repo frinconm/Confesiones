@@ -1,9 +1,13 @@
 package com.frank.novoti.confesiones;
 
+import android.app.Fragment;
+import android.app.FragmentManager;
+import android.net.Uri;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
 import android.util.Log;
+import android.util.Pair;
 import android.view.View;
 import android.support.design.widget.NavigationView;
 import android.support.v4.view.GravityCompat;
@@ -13,6 +17,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.EditText;
+import android.widget.Spinner;
 import android.widget.TextView;
 
 import com.google.firebase.database.ChildEventListener;
@@ -21,20 +27,25 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
-import com.google.firebase.database.ValueEventListener;
+import com.google.gson.Gson;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-public class Confesiones extends AppCompatActivity
-        implements NavigationView.OnNavigationItemSelectedListener {
+public class ConfesionesActivity extends AppCompatActivity
+        implements NavigationView.OnNavigationItemSelectedListener,
+        NuevaConfesionFragment.OnFragmentInteractionListener,
+        ConfesionesFragment.OnFragmentInteractionListener,
+        ModerarFragment.OnFragmentInteractionListener{
 
     private DatabaseReference mDatabase;
-    private List<String> postList;
-    private List<String> postSentDateList;
+    private DatabaseReference mPostDatabase;
+    private List<Pair<String, Post>> postList;
     private int currentIndex;
     private SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
@@ -54,27 +65,34 @@ public class Confesiones extends AppCompatActivity
             }
         });
 
-        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.main_layout);
         ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(
                 this, drawer, toolbar, R.string.navigation_drawer_open, R.string.navigation_drawer_close);
-        drawer.setDrawerListener(toggle);
+        drawer.addDrawerListener(toggle);
         toggle.syncState();
 
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
-        mDatabase = FirebaseDatabase.getInstance().getReference();
-        postList = new ArrayList<>();
-        postSentDateList = new ArrayList<>();
+        Fragment fragment = new ConfesionesFragment();
+        FragmentManager fragmentManager = getFragmentManager();
+        fragmentManager.beginTransaction()
+                .replace(R.id.content_frame, fragment)
+                .commit();
 
-        currentIndex = -1;
+        FirebaseDatabase.getInstance().setPersistenceEnabled(true);
+        mDatabase = FirebaseDatabase.getInstance().getReference();
+        mPostDatabase = FirebaseDatabase.getInstance().getReference("posts");
+
+        postList = new ArrayList<>();
 
         getLastPosts();
+
     }
 
     @Override
     public void onBackPressed() {
-        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.main_layout);
         if (drawer.isDrawerOpen(GravityCompat.START)) {
             drawer.closeDrawer(GravityCompat.START);
         } else {
@@ -111,10 +129,19 @@ public class Confesiones extends AppCompatActivity
         int id = item.getItemId();
 
         if (id == R.id.nav_camera) {
-            // Handle the camera action
+            Fragment fragment = new ConfesionesFragment();
+            FragmentManager fragmentManager = getFragmentManager();
+            fragmentManager.beginTransaction()
+                    .replace(R.id.content_frame, fragment)
+                    .commit();
         } else if (id == R.id.nav_gallery) {
-
+            Fragment fragment = new ModerarFragment();
+            FragmentManager fragmentManager = getFragmentManager();
+            fragmentManager.beginTransaction()
+                    .replace(R.id.content_frame, fragment)
+                    .commit();
         } else if (id == R.id.nav_slideshow) {
+
 
         } else if (id == R.id.nav_manage) {
 
@@ -122,21 +149,35 @@ public class Confesiones extends AppCompatActivity
 
         }
 
-        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.drawer_layout);
+        DrawerLayout drawer = (DrawerLayout) findViewById(R.id.main_layout);
         drawer.closeDrawer(GravityCompat.START);
         return true;
     }
 
+    @Override
+    public void onFragmentInteraction(Uri uri){
+        //you can leave it empty
+    }
+
+    public void openNuevaConfesionFragment(View view) {
+        Fragment fragment = new NuevaConfesionFragment();
+        FragmentManager fragmentManager = getFragmentManager();
+        fragmentManager.beginTransaction()
+                .replace(R.id.content_frame, fragment)
+                .commit();
+    }
+
     public void getLastPosts() {
 
-        Query lastPosts = mDatabase.child("posts").limitToLast(300);
+        Query lastPosts = mPostDatabase.limitToLast(300).orderByChild("approved").equalTo("true");
+        currentIndex = -1;
 
         lastPosts.addChildEventListener( new ChildEventListener() {
             @Override
             public void onChildAdded(DataSnapshot dataSnapshot, String previousChildName) {
                 Log.d("Child added first", "onChildAdded first:" + dataSnapshot.getKey());
-                postList.add(dataSnapshot.child("text").getValue().toString());
-                postSentDateList.add(sdf.format(dataSnapshot.child("sentDate").child("time").getValue()));
+                postList.add(new Pair<String, Post>(dataSnapshot.getKey(),
+                        dataSnapshot.getValue(Post.class)));
                 currentIndex++;
                 // A new comment has been added, add it to the displayed list
 
@@ -149,7 +190,15 @@ public class Confesiones extends AppCompatActivity
 
                 // A comment has changed, use the key to determine if we are displaying this
                 // comment and if so displayed the changed comment.
+                for (int i = 0; i < postList.size(); i++) {
+                    if (dataSnapshot.getKey().equals(postList.get(i).first)) {
+                        postList.get(i).second.setLikes(dataSnapshot.getValue(Post.class).getLikes());
+                        postList.get(i).second.setDislikes(dataSnapshot.getValue(Post.class).getDislikes());
+                        break;
+                    }
+                }
 
+                updateTextViews();
                 // ...
             }
 
@@ -180,11 +229,33 @@ public class Confesiones extends AppCompatActivity
     }
 
     private void updateTextViews() {
+
         TextView postTextView = (TextView) findViewById(R.id.postText);
         TextView sentDateTextView = (TextView) findViewById(R.id.sentDateText);
+        TextView ratingTextView = (TextView) findViewById(R.id.ratingTextView);
+        TextView votesNumberTextView = (TextView) findViewById(R.id.votesNumberTextView);
+        TextView numCommentsTextView = (TextView) findViewById(R.id.numCommentsTextView);
 
-        postTextView.setText(postList.get(currentIndex));
-        sentDateTextView.setText(postSentDateList.get(currentIndex));
+
+        postTextView.setText(postList.get(currentIndex).second.getText());
+        sentDateTextView.setText(sdf.format(postList.get(currentIndex).second.getSentDate()));
+
+        //Setting rating text view
+        float percentage;
+        float likesNumber = postList.get(currentIndex).second.getLikes();
+        float dislikesNumber = postList.get(currentIndex).second.getDislikes();
+        if ((likesNumber + dislikesNumber) != 0){
+            percentage = likesNumber / (likesNumber + dislikesNumber) * 100;
+
+        }
+        else {
+            percentage = 0;
+        }
+        ratingTextView.setText(String.valueOf((int)percentage) + "%");
+
+        //Setting votes number text view
+        votesNumberTextView.setText(String.valueOf((int)(likesNumber + dislikesNumber)));
+        numCommentsTextView.setText(String.valueOf(postList.get(currentIndex).second.getNumComent()));
     }
 
 
@@ -204,4 +275,51 @@ public class Confesiones extends AppCompatActivity
 
         updateTextViews();
     }
+
+    public void likePost(View view){
+        String key = postList.get(currentIndex).first;
+
+        Map<String, Object> postValues = postList.get(currentIndex).second.toMap();
+        Map<String, Object> updatingLike = new HashMap<>();
+        postValues.put("likes", ((int)postValues.get("likes") + 1));
+        updatingLike.put("/posts/" + key, postValues);
+
+        mDatabase.updateChildren(updatingLike);
+    }
+
+    public void dislikePost(View view){
+        String key = postList.get(currentIndex).first;
+
+        Map<String, Object> postValues = postList.get(currentIndex).second.toMap();
+        Map<String, Object> updatingLike = new HashMap<>();
+        postValues.put("dislikes", ((int)postValues.get("dislikes") + 1));
+        updatingLike.put("/posts/" + key, postValues);
+
+        mDatabase.updateChildren(updatingLike);
+    }
+
+    private void writeNewPost(Post post) {
+        Gson gson = new Gson();
+        gson.toJson(post);
+
+        mDatabase.child("posts").push().setValue(post);
+    }
+
+    public void postConfession(View view) {
+        EditText postTextView = (EditText) findViewById(R.id.confesionText);
+        EditText postTags = (EditText) findViewById(R.id.confesionTags);
+        Spinner categorySpinner = (Spinner) findViewById(R.id.universidades);
+
+        String thePostText = postTextView.getText().toString();
+        String[] tagArray = postTags.getText().toString().split(" ");
+        String category = categorySpinner.getSelectedItem().toString();
+
+        Date currentDate = new Date();
+
+        Post newPost = new Post(thePostText, currentDate, Arrays.asList(tagArray), category);
+        writeNewPost(newPost);
+
+
+    }
+
 }

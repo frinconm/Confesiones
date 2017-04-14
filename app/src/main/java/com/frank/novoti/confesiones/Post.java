@@ -1,11 +1,11 @@
 package com.frank.novoti.confesiones;
 
-import java.util.Date;
-import java.util.List;
+import com.google.firebase.database.Exclude;
 
-/**
- * Created by Claudina on 11/04/17.
- */
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 public class Post  {
     private String text;
@@ -15,24 +15,50 @@ public class Post  {
     private int dislikes;
     private Date sentDate;
     private List<String> tags;
+    private boolean approved;
+    private int moderationLikes;
+    private int moderationDislikes;
 
+    public Post() {
+    }
 
     public List<String> getTags() {
         return tags;
+    }
+
+    public int getModerationLikes() {
+        return moderationLikes;
+    }
+
+    public void setModerationLikes(int moderationLikes) {
+        this.moderationLikes = moderationLikes;
+    }
+
+    public int getModerationDislikes() {
+        return moderationDislikes;
+    }
+
+    public void setModerationDislikes(int moderationDislikes) {
+        this.moderationDislikes = moderationDislikes;
     }
 
     public void setTags(List<String> tags) {
         this.tags = tags;
     }
 
-    public Post(String text, Date sentDate, List<String> tags) {
+    public Post(String text, Date sentDate, List<String> tags, String category) {
         this.text = text;
-        this.category = "";
-        this.numComent = 0;
-        this.likes = 0;
-        this.dislikes = 0;
+        this.category = category;
         this.sentDate = sentDate;
         this.tags = tags;
+    }
+
+    public boolean isApproved() {
+        return approved;
+    }
+
+    public void setApproved(boolean approved) {
+        this.approved = approved;
     }
 
     public int getLikes() {
@@ -82,4 +108,22 @@ public class Post  {
     public void setSentDate(Date sentDate) {
         this.sentDate = sentDate;
     }
+
+    @Exclude
+    public Map<String, Object> toMap() {
+        HashMap<String, Object> result = new HashMap<>();
+        result.put("text", text);
+        result.put("category", category);
+        result.put("numComent", numComent);
+        result.put("likes", likes);
+        result.put("dislikes", dislikes);
+        result.put("sentDate", sentDate);
+        result.put("tags", tags);
+        result.put("approved", approved);
+        result.put("moderationLikes", moderationLikes);
+        result.put("moderationDislikes", moderationDislikes);
+
+        return result;
+    }
+
 }
