@@ -1,8 +1,16 @@
 package com.frank.novoti.confesiones;
 
+import android.app.Activity;
 import android.app.Fragment;
 import android.app.FragmentManager;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.graphics.drawable.BitmapDrawable;
+import android.graphics.drawable.Drawable;
+import android.media.Image;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.design.widget.FloatingActionButton;
 import android.support.design.widget.Snackbar;
@@ -18,9 +26,17 @@ import android.support.v7.widget.Toolbar;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.RelativeLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
 
+import com.facebook.AccessToken;
+import com.facebook.FacebookSdk;
+import com.facebook.GraphRequest;
+import com.facebook.GraphResponse;
+import com.facebook.HttpMethod;
+import com.facebook.appevents.AppEventsLogger;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -29,6 +45,11 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.Query;
 import com.google.gson.Gson;
 
+import org.json.JSONObject;
+
+import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -37,11 +58,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.frank.novoti.confesiones.R.attr.headerLayout;
+
 public class ConfesionesActivity extends AppCompatActivity
         implements NavigationView.OnNavigationItemSelectedListener,
         NuevaConfesionFragment.OnFragmentInteractionListener,
         ConfesionesFragment.OnFragmentInteractionListener,
-        ModerarFragment.OnFragmentInteractionListener{
+        ModerarFragment.OnFragmentInteractionListener,
+        CommentFragment.OnFragmentInteractionListener {
 
     private DatabaseReference mDatabase;
     private DatabaseReference mPostDatabase;
@@ -74,6 +98,11 @@ public class ConfesionesActivity extends AppCompatActivity
         NavigationView navigationView = (NavigationView) findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(this);
 
+
+        FacebookSdk.sdkInitialize(getApplicationContext());
+        AppEventsLogger.activateApp(this);
+
+
         Fragment fragment = new ConfesionesFragment();
         FragmentManager fragmentManager = getFragmentManager();
         fragmentManager.beginTransaction()
@@ -88,6 +117,48 @@ public class ConfesionesActivity extends AppCompatActivity
 
         getLastPosts();
 
+        RelativeLayout navHeader = (RelativeLayout) findViewById(R.id.navigation_header);
+        /*navHeader.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view){
+                Intent logInIntent = new Intent(ConfesionesActivity.this, LoginActivity.class);
+                startActivity(logInIntent);
+            }
+        });*/
+
+        AccessToken currentPerson = AccessToken.getCurrentAccessToken();
+        Bundle params = new Bundle();
+        params.putString("fields", "id,email,gender,cover,picture.width(180).height(180)");
+        View headerLayout = navigationView.getHeaderView(0);
+
+        if (currentPerson != null) {
+            Log.d("lgeuado?", "estoy logueado mierda!");
+
+
+            new GraphRequest(
+                    currentPerson,
+                    "me",
+                    params,
+                    HttpMethod.GET,
+                    new GraphRequest.Callback() {
+                        public void onCompleted(GraphResponse response) {
+                            Log.d("Response", response.toString());
+                            if (response != null) {
+                                try {
+                                    JSONObject data = response.getJSONObject();
+                                    if (data.has("picture")) {
+                                        String profilePicUrl = data.getJSONObject("picture").getJSONObject("data").getString("url");
+                                        new ProfilePictureTask(ConfesionesActivity.this, findViewById(android.R.id.content)).execute(profilePicUrl);
+                                    }
+                                } catch (Exception e) {
+                                    e.printStackTrace();
+                                    Log.e("Exception", "Exception profile picture thrown");
+                                }
+                            }
+                        }
+                    }
+            ).executeAsync();
+        }
     }
 
     @Override
@@ -115,7 +186,17 @@ public class ConfesionesActivity extends AppCompatActivity
         int id = item.getItemId();
 
         //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
+        if (id == R.id.action_refresh) {
+            return true;
+        } else if (id == R.id.action_comment) {
+            Fragment fragment = new CommentFragment();
+            FragmentManager fragmentManager = getFragmentManager();
+            fragmentManager.beginTransaction()
+                    .replace(R.id.content_frame, fragment)
+                    .commit();
+        } else if (id == R.id.action_favorites) {
+            return true;
+        } else if (id == R.id.action_report) {
             return true;
         }
 
@@ -169,7 +250,7 @@ public class ConfesionesActivity extends AppCompatActivity
 
     public void getLastPosts() {
 
-        Query lastPosts = mPostDatabase.limitToLast(300).orderByChild("approved").equalTo("true");
+        Query lastPosts = mPostDatabase.limitToLast(300).orderByChild("approved").equalTo(false);
         currentIndex = -1;
 
         lastPosts.addChildEventListener( new ChildEventListener() {
@@ -321,5 +402,4 @@ public class ConfesionesActivity extends AppCompatActivity
 
 
     }
-
 }
